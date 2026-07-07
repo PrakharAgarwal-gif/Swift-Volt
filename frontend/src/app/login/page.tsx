@@ -25,7 +25,11 @@ export default function LoginPage() {
       
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to login');
+      if (!err.response) {
+        setError(`Network Error: ${err.message}. Could not connect to backend.`);
+      } else {
+        setError(err.response?.data?.error || 'Failed to login');
+      }
     } finally {
       setLoading(false);
     }
