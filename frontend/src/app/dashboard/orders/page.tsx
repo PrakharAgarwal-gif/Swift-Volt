@@ -26,8 +26,8 @@ export default function OrdersPage() {
     
     fetchOrders();
 
-    // Socket.io for live updates
-    const socketUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+    const token = Cookies.get('token');
+    const socketUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://swift-volt.onrender.com';
     const socket = io(socketUrl);
     socket.on('new_order', (order) => {
       setOrders(prev => [order, ...prev]);
