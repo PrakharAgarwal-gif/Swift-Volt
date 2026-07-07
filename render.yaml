@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: swiftvolt-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npx prisma db push
+    startCommand: node server.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: swiftvolt-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: swiftvolt-db
+    databaseName: swiftvolt
+    user: swiftvolt_user

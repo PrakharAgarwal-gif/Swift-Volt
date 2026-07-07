@@ -1,0 +1,80 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  phone     String
+  password  String
+  role      String   @default("DEALER") // ADMIN or DEALER
+  dealer    Dealer?
+  createdAt DateTime @default(now())
+}
+
+model Dealer {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  companyName      String
+  address          String
+  stock            Int      @default(0)
+  performanceScore Float    @default(0.0)
+  orders           Order[]
+  sales            Sale[]
+}
+
+model Scooter {
+  id       String  @id @default(uuid())
+  model    String
+  price    Float
+  quantity Int     // Company Inventory
+  color    String
+}
+
+model Order {
+  id              String   @id @default(uuid())
+  dealerId        String
+  dealer          Dealer   @relation(fields: [dealerId], references: [id])
+  scooterModel    String
+  quantity        Int
+  color           String
+  accessories     String?  // JSON string or comma-separated
+  deliveryAddress String
+  paymentOption   String
+  status          String   @default("PLACED") // PLACED, APPROVED, PROCESSING, DISPATCHED, IN_TRANSIT, DELIVERED
+  trackingId      String?
+  expectedArrival DateTime?
+  invoice         Invoice?
+  createdAt       DateTime @default(now())
+}
+
+model Sale {
+  id           String   @id @default(uuid())
+  dealerId     String
+  dealer       Dealer   @relation(fields: [dealerId], references: [id])
+  scootersSold Int
+  revenue      Float
+  date         DateTime @default(now())
+}
+
+model Invoice {
+  id        String  @id @default(uuid())
+  orderId   String  @unique
+  order     Order   @relation(fields: [orderId], references: [id])
+  amount    Float
+  gst       Float   @default(0.0)
+  pdfUrl    String?
+  status    String  @default("PENDING") // PENDING, PAID
+}
