@@ -15,6 +15,11 @@ const io = new Server(server, {
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-swift-volt';
 
+// Verify environment variables at startup
+if (!process.env.DATABASE_URL) {
+  console.warn('\n⚠️  WARNING: DATABASE_URL environment variable is missing.');
+  console.warn('⚠️  Prisma will fail to connect to the database. Please configure it in your deployment platform (e.g. Render) or local .env file.\n');
+}
 app.use(cors());
 app.use(express.json());
 
@@ -60,7 +65,14 @@ app.post('/api/auth/login', async (req, res) => {
     const token = jwt.sign({ id: user.id, role: user.role, dealerId: user.dealer?.id }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, user: { id: user.id, name: user.name, role: user.role, dealerId: user.dealer?.id } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[Login Error]:', error);
+    
+    // Check if it's a Prisma connection or initialization error
+    if (error.message && error.message.includes('DATABASE_URL')) {
+      return res.status(503).json({ error: 'Database service is currently unavailable. Please check the backend configuration.' });
+    }
+    
+    res.status(500).json({ error: 'An internal server error occurred during authentication.' });
   }
 });
 
