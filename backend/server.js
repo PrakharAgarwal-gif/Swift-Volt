@@ -15,11 +15,6 @@ const io = new Server(server, {
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-swift-volt';
 
-// Verify environment variables at startup
-if (!process.env.DATABASE_URL) {
-  console.warn('\n⚠️  WARNING: DATABASE_URL environment variable is missing.');
-  console.warn('⚠️  Prisma will fail to connect to the database. Please configure it in your deployment platform (e.g. Render) or local .env file.\n');
-}
 app.use(cors());
 app.use(express.json());
 
