@@ -2,7 +2,9 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const api = axios.create({
-  baseURL: 'https://swift-volt.onrender.com/api',
+  baseURL: process.env.NODE_ENV === 'production' 
+    ? 'https://swift-volt.onrender.com/api' 
+    : 'http://localhost:3001/api',
 });
 
 api.interceptors.request.use((config) => {
