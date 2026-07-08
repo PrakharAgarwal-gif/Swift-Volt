@@ -14,7 +14,10 @@ import {
   Bell,
   Menu,
   LayoutGrid,
-  Check
+  Check,
+  Smartphone,
+  Scan,
+  UsersRound
 } from 'lucide-react';
 import api from '@/lib/api';
 import { io } from 'socket.io-client';
@@ -70,6 +73,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Spare Parts', href: '/dashboard/spare-parts', icon: Package },
     { name: 'Warranty', href: '/dashboard/warranty', icon: FileText },
     { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
+    { name: 'Quick Order', href: '/dashboard/quick-order', icon: Smartphone },
+    { name: 'Customers (CRM)', href: '/dashboard/customers', icon: UsersRound },
+    { name: 'QR Scanner', href: '/dashboard/scanner', icon: Scan },
     { name: 'Billing', href: '/dashboard/billing', icon: FileText },
     { name: 'AI Assistant', href: '/dashboard/ai', icon: MessageSquare },
   ];

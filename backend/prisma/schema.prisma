@@ -29,6 +29,7 @@ model Dealer {
   address          String
   stock            Int      @default(0)
   performanceScore Float    @default(0.0)
+  customers        Customer[]
   orders           Order[]
   sales            Sale[]
   sparePartOrders  SparePartOrder[]
@@ -166,4 +167,19 @@ model Notification {
   read      Boolean  @default(false)
   link      String?  
   createdAt DateTime @default(now())
+}
+
+model Customer {
+  id          String   @id @default(uuid())
+  dealerId    String
+  dealer      Dealer   @relation(fields: [dealerId], references: [id])
+  name        String
+  phone       String
+  email       String?
+  address     String?
+  notes       String?
+  purchaseDate DateTime?
+  vehicleModel String?
+  chassisNum   String?
+  createdAt   DateTime @default(now())
 }

@@ -548,6 +548,86 @@ app.put('/api/notifications/read-all', authenticate, async (req, res) => {
   }
 });
 
+// --- CRM: Customers ---
+app.get('/api/customers', authenticate, async (req, res) => {
+  try {
+    const dealerId = req.user.dealerId;
+    const customers = await prisma.customer.findMany({
+      where: dealerId ? { dealerId } : {}, // Admins see all, Dealers see theirs
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(customers);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/customers/add', authenticate, async (req, res) => {
+  try {
+    const dealerId = req.user.dealerId;
+    if (!dealerId) return res.status(403).json({ error: 'Not a dealer' });
+    
+    const customer = await prisma.customer.create({
+      data: {
+        dealerId,
+        ...req.body
+      }
+    });
+    res.json(customer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Mobile: Quick Order (Bulk) ---
+app.post('/api/orders/quick', authenticate, async (req, res) => {
+  try {
+    const dealerId = req.user.dealerId;
+    if (!dealerId) return res.status(403).json({ error: 'Not a dealer' });
+    
+    const { items, deliveryAddress, paymentOption } = req.body; // items = [{ model, color, quantity }]
+    
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: 'Order cannot be empty' });
+    }
+
+    const createdOrders = [];
+    
+    // Simplistic transaction-like approach for MVP
+    for (const item of items) {
+      const scooter = await prisma.scooter.findFirst({ where: { model: item.model, color: item.color } });
+      if (!scooter || scooter.quantity < item.quantity) {
+        throw new Error(`Insufficient stock for ${item.model} (${item.color})`);
+      }
+      
+      const order = await prisma.order.create({
+        data: {
+          dealerId,
+          scooterModel: item.model,
+          quantity: item.quantity,
+          color: item.color,
+          deliveryAddress,
+          paymentOption,
+          expectedArrival: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        }
+      });
+      
+      await prisma.scooter.update({
+        where: { id: scooter.id },
+        data: { quantity: scooter.quantity - item.quantity }
+      });
+      
+      createdOrders.push(order);
+    }
+    
+    // Notify admin
+    io.emit('new_bulk_order', createdOrders);
+    
+    res.json({ success: true, orders: createdOrders });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
