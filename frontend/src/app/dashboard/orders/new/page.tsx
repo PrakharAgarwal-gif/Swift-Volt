@@ -1,9 +1,7 @@
-"use client";
-
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
-import { Package, Truck, ArrowRight, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { Package, Truck, ArrowRight, DollarSign, Plus, Trash2, CreditCard, Smartphone, Building } from 'lucide-react';
 
 interface CartItem {
   id: string;
@@ -23,10 +21,13 @@ function NewOrderForm() {
 
   const [items, setItems] = useState<CartItem[]>([]);
   
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [paymentOption, setPaymentOption] = useState('Wire Transfer');
+  const [paymentOption, setPaymentOption] = useState('Online Payment (Paytm, Cards, Net Banking)');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Payment Gateway State
+  const [showPaymentGateway, setShowPaymentGateway] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
 
   // Fetch Inventory
   useEffect(() => {
@@ -130,6 +131,15 @@ function NewOrderForm() {
       return;
     }
     
+    if (paymentOption === 'Online Payment (Paytm, Cards, Net Banking)') {
+      setShowPaymentGateway(true);
+      return;
+    }
+
+    await placeOrder(paymentOption);
+  };
+
+  const placeOrder = async (finalPaymentOption: string) => {
     setError('');
     setLoading(true);
     try {
@@ -141,14 +151,26 @@ function NewOrderForm() {
           quantity: item.quantity
         })),
         deliveryAddress,
-        paymentOption
+        paymentOption: finalPaymentOption
       });
       router.push('/dashboard/orders');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to place bulk order');
+      setShowPaymentGateway(false);
     } finally {
       setLoading(false);
     }
+  };
+
+  const simulatePayment = () => {
+    setPaymentStatus('processing');
+    setTimeout(() => {
+      setPaymentStatus('success');
+      setTimeout(() => {
+        const txnId = 'TXN-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+        placeOrder(`Online Payment (ID: ${txnId})`);
+      }, 1500);
+    }, 2500);
   };
 
   if (loadingInventory) {
@@ -266,11 +288,10 @@ function NewOrderForm() {
                 <select 
                   value={paymentOption} 
                   onChange={(e) => setPaymentOption(e.target.value)}
-                  className="block w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 focus:ring-primary focus:border-primary"
+                  className="block w-full p-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800 focus:ring-primary focus:border-primary font-medium"
                 >
+                  <option value="Online Payment (Paytm, Cards, Net Banking)">Online Payment (Paytm, Cards, Net Banking)</option>
                   <option value="Wire Transfer">Wire Transfer</option>
-                  <option value="Credit Card">Credit Card</option>
-                  <option value="Net Banking">Net Banking</option>
                   <option value="Dealer Credit Line">Dealer Credit Line</option>
                 </select>
               </div>
@@ -328,13 +349,103 @@ function NewOrderForm() {
               disabled={loading || !isValid}
               className="mt-6 w-full flex items-center justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors disabled:opacity-50"
             >
-              {loading ? 'Processing...' : 'Confirm Bulk Order'}
+              {loading ? 'Processing...' : paymentOption === 'Online Payment (Paytm, Cards, Net Banking)' ? 'Proceed to Payment' : 'Confirm Bulk Order'}
               {!loading && <ArrowRight className="ml-2 w-4 h-4" />}
             </button>
             <p className="text-xs text-center text-gray-500 mt-4">By placing this bulk order, you agree to Swift Volt's Dealership Agreement.</p>
           </div>
         </div>
       </div>
+
+      {/* Payment Gateway Modal */}
+      {showPaymentGateway && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0f172a] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-200 dark:border-gray-800 relative flex flex-col h-[600px] max-h-[90vh]">
+            
+            {paymentStatus === 'success' ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in zoom-in-95 duration-500">
+                <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mb-6">
+                  <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Payment Successful!</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-8">Your order is being processed securely.</p>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 animate-[pulse_1s_ease-in-out_infinite]" style={{ width: '100%' }}></div>
+                </div>
+              </div>
+            ) : paymentStatus === 'processing' ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary mb-6"></div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Processing Payment...</h3>
+                <p className="text-gray-500 dark:text-gray-400">Please do not close this window or hit back.</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-primary p-6 text-white text-center relative shrink-0">
+                  <button 
+                    onClick={() => setShowPaymentGateway(false)} 
+                    className="absolute top-4 right-4 text-white/70 hover:text-white"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <div className="text-white/80 text-sm font-medium mb-1">Total Payable Amount</div>
+                  <div className="text-4xl font-bold">${totalAmount.toLocaleString()}</div>
+                  <div className="text-xs text-white/70 mt-2 bg-white/10 inline-block px-3 py-1 rounded-full">
+                    Transaction ID: TXN-{Math.random().toString(36).substring(2, 10).toUpperCase()}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 bg-gray-50 dark:bg-gray-900">
+                  <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Select Payment Method</h4>
+                  
+                  <div className="space-y-3">
+                    <button onClick={simulatePayment} className="w-full flex items-center p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary dark:hover:border-primary hover:shadow-md transition-all group">
+                      <div className="w-10 h-10 rounded-full bg-[#002970]/10 flex items-center justify-center mr-4 shrink-0 group-hover:bg-[#002970]/20">
+                        <Smartphone className="w-5 h-5 text-[#002970] dark:text-[#00baf2]" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-900 dark:text-white text-base">Paytm / UPI</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Pay directly from your bank account</div>
+                      </div>
+                    </button>
+
+                    <button onClick={simulatePayment} className="w-full flex items-center p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary dark:hover:border-primary hover:shadow-md transition-all group">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-4 shrink-0 group-hover:bg-primary/20">
+                        <CreditCard className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-900 dark:text-white text-base">Credit / Debit Card</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Visa, MasterCard, Amex, RuPay</div>
+                      </div>
+                    </button>
+
+                    <button onClick={simulatePayment} className="w-full flex items-center p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-primary dark:hover:border-primary hover:shadow-md transition-all group">
+                      <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center mr-4 shrink-0 group-hover:bg-purple-500/20">
+                        <Building className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-900 dark:text-white text-base">Net Banking</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">All major banks supported</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="p-4 bg-white dark:bg-[#0f172a] border-t border-gray-100 dark:border-gray-800 shrink-0 text-center flex items-center justify-center text-xs text-gray-400">
+                  <svg className="w-4 h-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  256-bit SSL Secured Payment
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
