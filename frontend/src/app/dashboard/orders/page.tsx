@@ -182,6 +182,12 @@ export default function OrdersPage() {
                 <span className="text-primary">{progress}% Completed</span>
                 <span>Delivered</span>
               </div>
+              
+              <div className="mt-4 flex justify-end">
+                <a href={`/dashboard/tracking/${order.id}`} className="text-sm font-medium text-primary hover:underline flex items-center">
+                  Track Shipment <ArrowRight className="w-4 h-4 ml-1" />
+                </a>
+              </div>
 
               {/* Dispatch Details if available */}
               {order.dispatchDate && (

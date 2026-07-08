@@ -17,7 +17,8 @@ import {
   Check,
   Smartphone,
   Scan,
-  UsersRound
+  UsersRound,
+  Files
 } from 'lucide-react';
 import api from '@/lib/api';
 import { io } from 'socket.io-client';
@@ -75,6 +76,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
     { name: 'Quick Order', href: '/dashboard/quick-order', icon: Smartphone },
     { name: 'Customers (CRM)', href: '/dashboard/customers', icon: UsersRound },
+    { name: 'Document Center', href: '/dashboard/documents', icon: Files },
     { name: 'QR Scanner', href: '/dashboard/scanner', icon: Scan },
     { name: 'Billing', href: '/dashboard/billing', icon: FileText },
     { name: 'AI Assistant', href: '/dashboard/ai', icon: MessageSquare },
