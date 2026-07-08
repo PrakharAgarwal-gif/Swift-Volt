@@ -44,6 +44,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { name: 'Dealers', href: '/dashboard/dealers', icon: Users },
     ] : []),
     { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
+    { name: 'Spare Parts', href: '/dashboard/spare-parts', icon: Package },
+    { name: 'Warranty', href: '/dashboard/warranty', icon: FileText },
     { name: 'Orders', href: '/dashboard/orders', icon: ShoppingCart },
     { name: 'Billing', href: '/dashboard/billing', icon: FileText },
     { name: 'AI Assistant', href: '/dashboard/ai', icon: MessageSquare },
@@ -100,6 +102,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               <Menu className="h-6 w-6" />
             </button>
+            <div className="hidden md:block ml-4 flex-1 max-w-md">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const q = (e.target as any).search.value;
+                if (q) router.push(`/dashboard/search?q=${encodeURIComponent(q)}`);
+              }} className="relative flex items-center">
+                <input 
+                  name="search"
+                  type="text" 
+                  placeholder="Search orders, vehicles, dealers..." 
+                  className="w-full pl-4 pr-10 py-1.5 border border-gray-200 dark:border-gray-700 rounded-full bg-gray-50 dark:bg-gray-800/50 text-sm focus:ring-primary focus:border-primary" 
+                />
+                <button type="submit" className="absolute right-3 text-gray-400">
+                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                   </svg>
+                </button>
+              </form>
+            </div>
           </div>
           <div className="ml-4 flex items-center md:ml-6 space-x-4">
             <button className="p-2 text-gray-400 hover:text-gray-500 relative">

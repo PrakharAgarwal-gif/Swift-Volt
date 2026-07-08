@@ -9,14 +9,34 @@ import {
   Clock, 
   CheckCircle2, 
   Truck, 
-  Plus
+  Plus,
+  Settings,
+  ChevronDown
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+
+const MANUFACTURING_STEPS = [
+  'Order Confirmed', 'Production Scheduled', 'Frame Assembly', 'Painting', 
+  'Motor Installation', 'Battery Installation', 'Electrical Wiring', 
+  'Software Programming', 'Quality Inspection', 'Road Testing', 
+  'Packaging', 'Ready for Dispatch', 'Dispatched', 'Delivered'
+];
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Dispatch Modal State
+  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [dispatchDetails, setDispatchDetails] = useState({
+    transportCompany: '',
+    driverName: '',
+    driverMobile: '',
+    vehicleNumber: '',
+    lrNumber: ''
+  });
 
   useEffect(() => {
     const userCookie = Cookies.get('user');
@@ -26,13 +46,12 @@ export default function OrdersPage() {
     
     fetchOrders();
 
-    const token = Cookies.get('token');
     const socketUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://swift-volt.onrender.com';
     const socket = io(socketUrl);
     socket.on('new_order', (order) => {
       setOrders(prev => [order, ...prev]);
     });
-    socket.on('order_status_update', (updatedOrder) => {
+    socket.on('order_updated', (updatedOrder) => {
       setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
     });
 
@@ -52,25 +71,42 @@ export default function OrdersPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PLACED': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800';
-      case 'APPROVED': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border-purple-200 dark:border-purple-800';
-      case 'PROCESSING': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
-      case 'DISPATCHED': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
-      case 'IN_TRANSIT': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800';
-      case 'DELIVERED': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700';
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    if (newStatus === 'Dispatched') {
+      setSelectedOrder(orders.find(o => o.id === orderId));
+      setDispatchModalOpen(true);
+      return;
+    }
+    
+    try {
+      const res = await api.put(`/orders/${orderId}/status`, { status: newStatus });
+      setOrders(prev => prev.map(o => o.id === orderId ? res.data : o));
+    } catch (err) {
+      console.error("Failed to update status", err);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'DELIVERED': return <CheckCircle2 className="w-4 h-4 mr-1" />;
-      case 'IN_TRANSIT': 
-      case 'DISPATCHED': return <Truck className="w-4 h-4 mr-1" />;
-      default: return <Clock className="w-4 h-4 mr-1" />;
+  const submitDispatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
+    
+    try {
+      const res = await api.put(`/orders/${selectedOrder.id}/status`, { 
+        status: 'Dispatched',
+        dispatchDetails
+      });
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? res.data : o));
+      setDispatchModalOpen(false);
+      setSelectedOrder(null);
+    } catch (err) {
+      console.error("Failed to dispatch order", err);
     }
+  };
+
+  const getStepProgress = (status: string) => {
+    const idx = MANUFACTURING_STEPS.indexOf(status);
+    if (idx === -1) return 0;
+    return Math.round(((idx + 1) / MANUFACTURING_STEPS.length) * 100);
   };
 
   if (loading) return <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
@@ -79,8 +115,8 @@ export default function OrdersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Order Management</h1>
-          <p className="text-gray-500 dark:text-gray-400">Track and manage your scooter orders.</p>
+          <h1 className="text-2xl font-bold text-foreground">Order & Manufacturing Pipeline</h1>
+          <p className="text-gray-500 dark:text-gray-400">Track production, assembly, and dispatch.</p>
         </div>
         {user?.role === 'DEALER' && (
           <a
@@ -93,66 +129,138 @@ export default function OrdersPage() {
         )}
       </div>
 
-      <div className="bg-white dark:bg-[#0f172a] shadow-sm rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-            <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800/50">
-              <tr>
-                <th scope="col" className="px-6 py-4 font-semibold">Order ID</th>
-                {user?.role === 'ADMIN' && <th scope="col" className="px-6 py-4 font-semibold">Dealer</th>}
-                <th scope="col" className="px-6 py-4 font-semibold">Product</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Quantity</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Status</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Expected Arrival</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr key={order.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
-                    #{order.id.substring(0, 8).toUpperCase()}
-                    <div className="text-xs text-gray-500 mt-1 flex items-center">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      {order.deliveryAddress.substring(0, 25)}...
-                    </div>
-                  </td>
-                  {user?.role === 'ADMIN' && (
-                    <td className="px-6 py-4">
-                      {order.dealer?.companyName || 'Unknown'}
-                    </td>
-                  )}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <Package className="w-4 h-4 mr-2 text-primary" />
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">{order.scooterModel}</div>
-                        <div className="text-xs text-gray-500">{order.color}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-medium">{order.quantity} Units</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                      {getStatusIcon(order.status)}
-                      {order.status.replace('_', ' ')}
+      <div className="space-y-4">
+        {orders.map((order) => {
+          const progress = getStepProgress(order.status);
+          
+          return (
+            <div key={order.id} className="bg-white dark:bg-[#0f172a] shadow-sm rounded-xl border border-gray-100 dark:border-gray-800 p-6">
+              <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Package className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                      Order #{order.id.substring(0, 8).toUpperCase()}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {order.quantity}x {order.scooterModel} ({order.color}) 
+                      {user?.role === 'ADMIN' && ` • Dealer: ${order.dealer?.companyName}`}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col md:items-end gap-2">
+                  {user?.role === 'ADMIN' ? (
+                    <select 
+                      value={order.status}
+                      onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                      className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block w-full p-2.5"
+                    >
+                      {MANUFACTURING_STEPS.map(step => (
+                        <option key={step} value={step}>{step}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="px-3 py-1 bg-primary/10 text-primary font-medium rounded-full text-sm">
+                      {order.status}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-500">
-                    {order.expectedArrival ? new Date(order.expectedArrival).toLocaleDateString() : 'TBD'}
-                  </td>
-                </tr>
-              ))}
-              {orders.length === 0 && (
-                <tr>
-                  <td colSpan={user?.role === 'ADMIN' ? 6 : 5} className="px-6 py-12 text-center text-gray-500">
-                    No orders found.
-                  </td>
-                </tr>
+                  )}
+                  <span className="text-xs text-gray-400">
+                    Expected: {order.expectedArrival ? new Date(order.expectedArrival).toLocaleDateString() : 'TBD'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2 mb-2">
+                <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 font-medium">
+                <span>Order Confirmed</span>
+                <span className="text-primary">{progress}% Completed</span>
+                <span>Delivered</span>
+              </div>
+
+              {/* Dispatch Details if available */}
+              {order.dispatchDate && (
+                <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Transport</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{order.transportCompany}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Driver</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{order.driverName} ({order.driverMobile})</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Vehicle No</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{order.vehicleNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">LR Number</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-200">{order.lrNumber}</p>
+                  </div>
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          );
+        })}
+        {orders.length === 0 && (
+          <div className="text-center p-12 bg-white dark:bg-[#0f172a] rounded-xl border border-gray-100 dark:border-gray-800">
+            <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">No orders found.</p>
+          </div>
+        )}
       </div>
+
+      {/* Dispatch Modal */}
+      {dispatchModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#0f172a] rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Dispatch Order</h3>
+            </div>
+            <form onSubmit={submitDispatch} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Transport Company</label>
+                <input required type="text" className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" value={dispatchDetails.transportCompany} onChange={e => setDispatchDetails({...dispatchDetails, transportCompany: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driver Name</label>
+                  <input required type="text" className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" value={dispatchDetails.driverName} onChange={e => setDispatchDetails({...dispatchDetails, driverName: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driver Mobile</label>
+                  <input required type="text" className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" value={dispatchDetails.driverMobile} onChange={e => setDispatchDetails({...dispatchDetails, driverMobile: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vehicle No</label>
+                  <input required type="text" className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" value={dispatchDetails.vehicleNumber} onChange={e => setDispatchDetails({...dispatchDetails, vehicleNumber: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">LR Number</label>
+                  <input required type="text" className="w-full rounded-lg border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white" value={dispatchDetails.lrNumber} onChange={e => setDispatchDetails({...dispatchDetails, lrNumber: e.target.value})} />
+                </div>
+              </div>
+              
+              <div className="pt-4 flex justify-end space-x-3 border-t border-gray-200 dark:border-gray-800 mt-6">
+                <button type="button" onClick={() => setDispatchModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                  Cancel
+                </button>
+                <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors flex items-center">
+                  <Truck className="w-4 h-4 mr-2" />
+                  Confirm Dispatch
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

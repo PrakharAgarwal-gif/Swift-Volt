@@ -55,38 +55,54 @@ export default function InventoryPage() {
             <thead className="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800/50">
               <tr>
                 <th scope="col" className="px-6 py-4 font-semibold">Model</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Color</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Price (Unit)</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Category</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Colors</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Dealer Price</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Retail Price</th>
                 <th scope="col" className="px-6 py-4 font-semibold">Available Stock</th>
                 <th scope="col" className="px-6 py-4 font-semibold">Action</th>
               </tr>
             </thead>
             <tbody>
-              {inventory.map((item) => (
-                <tr key={item.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white flex items-center">
-                    <Package className="w-5 h-5 mr-3 text-primary" />
-                    {item.model}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
-                      {item.color}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">${item.price.toLocaleString()}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className={`w-2 h-2 rounded-full mr-2 ${item.quantity > 50 ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                      {item.quantity} Units
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <a href={`/dashboard/orders/new?model=${encodeURIComponent(item.model)}&color=${encodeURIComponent(item.color)}`} className="text-primary hover:text-primary/80 font-medium hover:underline">
-                      Place Order
-                    </a>
-                  </td>
-                </tr>
-              ))}
+              {inventory.map((item) => {
+                const colors = item.colors ? JSON.parse(item.colors) : [];
+                return (
+                  <tr key={item.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                    <td className="px-6 py-4 font-medium text-gray-900 dark:text-white flex items-center">
+                      <Package className="w-5 h-5 mr-3 text-primary" />
+                      <div>
+                        <div>{item.model}</div>
+                        <div className="text-xs text-gray-500 font-normal mt-0.5">{item.motorPower} | {item.batteryCapacity}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${item.category === 'Special' ? 'bg-purple-100 text-purple-800 border-purple-200' : item.category === 'Commercial' ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-gray-100 text-gray-800 border-gray-200'}`}>
+                        {item.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-1 flex-wrap">
+                        {colors.map((c: string) => (
+                          <span key={c} className="px-2 py-0.5 rounded text-[10px] bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">{c}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-medium text-green-600">₹{item.dealerPrice.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-gray-500">₹{item.retailPrice.toLocaleString()}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className={`w-2 h-2 rounded-full mr-2 ${item.quantity > 50 ? 'bg-green-500' : item.quantity > 20 ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                        {item.quantity} Units
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <a href={`/dashboard/orders/new?model=${encodeURIComponent(item.model)}&color=${colors[0] || 'Default'}`} className="text-primary hover:text-primary/80 font-medium hover:underline">
+                        Place Order
+                      </a>
+                    </td>
+                  </tr>
+                );
+              })}
               {inventory.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">

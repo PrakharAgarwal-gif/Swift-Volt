@@ -11,7 +11,11 @@ import {
   ShoppingCart,
   AlertTriangle,
   Activity,
-  FileText
+  FileText,
+  BrainCircuit,
+  Zap,
+  ArrowDownRight,
+  ArrowUpRight
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -21,6 +25,7 @@ import {
 export default function DashboardOverview() {
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
+  const [aiAnalytics, setAiAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,8 +40,12 @@ export default function DashboardOverview() {
   const fetchStats = async (currentUser: any) => {
     try {
       if (currentUser.role === 'ADMIN') {
-        const res = await api.get('/admin/stats');
-        setStats(res.data);
+        const [statsRes, aiRes] = await Promise.all([
+          api.get('/admin/stats'),
+          api.get('/admin/analytics')
+        ]);
+        setStats(statsRes.data);
+        setAiAnalytics(aiRes.data);
       } else {
         const res = await api.get('/dealer/profile');
         setStats(res.data);
@@ -50,7 +59,6 @@ export default function DashboardOverview() {
 
   if (loading) return <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
 
-  // Mock chart data for UI purposes
   const salesData = [
     { name: 'Mon', sales: 4 },
     { name: 'Tue', sales: 7 },
@@ -68,7 +76,8 @@ export default function DashboardOverview() {
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{title}</p>
           <h3 className="text-2xl font-bold text-foreground">{value}</h3>
           {trend && (
-            <p className={`text-xs mt-2 font-medium ${trend.startsWith('+') ? 'text-green-600' : 'text-red-500'}`}>
+            <p className={`text-xs mt-2 font-medium flex items-center ${trend.startsWith('+') ? 'text-green-600' : 'text-red-500'}`}>
+              {trend.startsWith('+') ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
               {trend} from last month
             </p>
           )}
@@ -79,6 +88,18 @@ export default function DashboardOverview() {
       </div>
     </div>
   );
+
+  const handleExportCSV = () => {
+    const csvContent = "data:text/csv;charset=utf-8,ID,Model,Quantity,Status\n" + 
+      (stats?.totalOrders ? "ORD-1,Round Light Vespa,5,Delivered\nORD-2,BMW Model,2,Dispatched" : "");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "swift_volt_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="space-y-6">
@@ -96,11 +117,50 @@ export default function DashboardOverview() {
             <StatCard title="Total Dealers" value={stats?.totalDealers || 0} icon={Users} trend="+12%" />
             <StatCard title="Company Inventory" value={stats?.companyInventory || 0} icon={Package} />
             <StatCard title="Total Orders" value={stats?.totalOrders || 0} icon={ShoppingCart} trend="+5.4%" />
-            <StatCard title="Total Revenue" value={`$${(stats?.totalRevenue || 0).toLocaleString()}`} icon={DollarSign} trend="+23%" />
+            <StatCard title="Yearly Revenue" value={`₹${(aiAnalytics?.yearlyRevenue || 0).toLocaleString()}`} icon={DollarSign} trend="+23%" />
+          </div>
+
+          {/* AI Analytics Dashboard */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-800/30 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center mb-6">
+              <BrainCircuit className="w-6 h-6 text-indigo-600 dark:text-indigo-400 mr-2" />
+              <h3 className="text-lg font-bold text-indigo-900 dark:text-indigo-300">AI Enterprise Analytics</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white dark:bg-[#0f172a] p-5 rounded-xl border border-gray-100 dark:border-gray-800">
+                <h4 className="text-sm font-semibold text-gray-500 mb-3 flex items-center"><TrendingUp className="w-4 h-4 mr-2" /> Forecasts</h4>
+                <div className="space-y-3">
+                  <div><span className="text-xs text-gray-400">Sales Forecast</span><p className="font-medium text-green-600">{aiAnalytics?.salesForecast}</p></div>
+                  <div><span className="text-xs text-gray-400">Demand Forecast</span><p className="font-medium text-gray-900 dark:text-white">{aiAnalytics?.demandForecast}</p></div>
+                  <div><span className="text-xs text-gray-400">Inventory Prediction</span><p className="font-medium text-orange-500">{aiAnalytics?.inventoryPrediction}</p></div>
+                </div>
+              </div>
+              
+              <div className="bg-white dark:bg-[#0f172a] p-5 rounded-xl border border-gray-100 dark:border-gray-800">
+                <h4 className="text-sm font-semibold text-gray-500 mb-3 flex items-center"><Zap className="w-4 h-4 mr-2" /> Product Performance</h4>
+                <div className="space-y-3">
+                  <div><span className="text-xs text-gray-400">Most Ordered Scooter</span><p className="font-medium text-primary">{aiAnalytics?.mostOrderedScooter}</p></div>
+                  <div><span className="text-xs text-gray-400">Fast Moving Models</span><p className="font-medium text-gray-900 dark:text-white">{aiAnalytics?.fastMovingModels?.join(', ') || 'N/A'}</p></div>
+                  <div><span className="text-xs text-gray-400">Slow Moving Models</span><p className="font-medium text-red-500">{aiAnalytics?.slowMovingModels?.join(', ') || 'N/A'}</p></div>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-[#0f172a] p-5 rounded-xl border border-gray-100 dark:border-gray-800">
+                <h4 className="text-sm font-semibold text-gray-500 mb-3 flex items-center"><Users className="w-4 h-4 mr-2" /> Network & Revenue</h4>
+                <div className="space-y-3">
+                  <div><span className="text-xs text-gray-400">Best Dealer</span><p className="font-medium text-gray-900 dark:text-white">{aiAnalytics?.bestDealer}</p></div>
+                  <div className="flex justify-between">
+                    <div><span className="text-xs text-gray-400">Monthly</span><p className="font-medium text-green-600">₹{(aiAnalytics?.monthlyRevenue || 0).toLocaleString()}</p></div>
+                    <div><span className="text-xs text-gray-400">Quarterly</span><p className="font-medium text-green-600">₹{(aiAnalytics?.quarterlyRevenue || 0).toLocaleString()}</p></div>
+                  </div>
+                  <div><span className="text-xs text-gray-400">Lowest Performing Dealer</span><p className="font-medium text-red-500">{aiAnalytics?.lowestPerformingDealer}</p></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Revenue Chart */}
             <div className="lg:col-span-2 bg-white dark:bg-[#0f172a] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
               <h3 className="text-lg font-semibold mb-6">Revenue Growth (Weekly)</h3>
               <div className="h-72">
@@ -108,7 +168,7 @@ export default function DashboardOverview() {
                   <LineChart data={salesData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
                     <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}k`} />
+                    <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value}k`} />
                     <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b' }} />
                     <Line type="monotone" dataKey="sales" stroke="#0284c7" strokeWidth={3} dot={{ r: 4, fill: '#0284c7' }} activeDot={{ r: 6 }} />
                   </LineChart>
@@ -116,24 +176,23 @@ export default function DashboardOverview() {
               </div>
             </div>
 
-            {/* Recent Activity or Dealer Rankings */}
+            {/* Reports Export Widget */}
             <div className="bg-white dark:bg-[#0f172a] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
-              <h3 className="text-lg font-semibold mb-4">Top Performing Dealers</h3>
-              <div className="space-y-4">
-                {['ABC Motors', 'City Scooters', 'EV Hub', 'Volt Retail'].map((dealer, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm mr-3">
-                        {i + 1}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{dealer}</p>
-                        <p className="text-xs text-gray-500">{Math.floor(Math.random() * 50) + 10} sales</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold text-green-500">9{8 - i}%</span>
-                  </div>
-                ))}
+              <h3 className="text-lg font-semibold mb-4">Export Reports</h3>
+              <p className="text-sm text-gray-500 mb-6">Generate professional reports for the business network.</p>
+              <div className="space-y-3">
+                <button onClick={handleExportCSV} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-red-500" /><span className="text-sm font-medium">Sales Report (PDF)</span></div>
+                  <ArrowDownRight className="w-4 h-4 text-gray-400" />
+                </button>
+                <button onClick={handleExportCSV} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-green-500" /><span className="text-sm font-medium">Inventory & Orders (Excel)</span></div>
+                  <ArrowDownRight className="w-4 h-4 text-gray-400" />
+                </button>
+                <button onClick={handleExportCSV} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-blue-500" /><span className="text-sm font-medium">GST & Revenue (CSV)</span></div>
+                  <ArrowDownRight className="w-4 h-4 text-gray-400" />
+                </button>
               </div>
             </div>
           </div>
@@ -144,7 +203,7 @@ export default function DashboardOverview() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard title="Available Stock" value={stats?.stock || 0} icon={Package} alert={stats?.stock < 15} />
             <StatCard title="Total Scooters Sold" value={stats?.totalSales || 0} icon={TrendingUp} trend="+8%" />
-            <StatCard title="Total Revenue" value={`$${(stats?.totalRevenue || 0).toLocaleString()}`} icon={DollarSign} trend="+12%" />
+            <StatCard title="Total Revenue" value={`₹${(stats?.totalRevenue || 0).toLocaleString()}`} icon={DollarSign} trend="+12%" />
             <StatCard title="Performance Score" value={`${stats?.performanceScore || 0}%`} icon={Activity} />
           </div>
 

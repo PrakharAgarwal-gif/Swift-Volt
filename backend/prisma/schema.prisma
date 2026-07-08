@@ -1,7 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// This is your Prisma schema file
 
 generator client {
   provider = "prisma-client-js"
@@ -33,14 +30,35 @@ model Dealer {
   performanceScore Float    @default(0.0)
   orders           Order[]
   sales            Sale[]
+  sparePartOrders  SparePartOrder[]
 }
 
 model Scooter {
-  id       String  @id @default(uuid())
-  model    String
-  price    Float
-  quantity Int     // Company Inventory
-  color    String
+  id                    String   @id @default(uuid())
+  model                 String   @unique
+  category              String   @default("Standard") // Standard, Special, Commercial
+  description           String?
+  features              String?  // JSON string or comma-separated
+  batteryCapacity       String?
+  motorPower            String?
+  maxSpeed              String?
+  range                 String?
+  chargingTime          String?
+  controller            String?
+  tyreSize              String?
+  brakeType             String?
+  suspension            String?
+  weight                String?
+  payload               String?
+  colors                String?  // JSON array
+  warrantyPeriod        String?
+  dealerPrice           Float    @default(0.0)
+  distributorPrice      Float    @default(0.0)
+  retailPrice           Float    @default(0.0)
+  manufacturingLeadTime String?  // e.g. "7 Days"
+  quantity              Int      @default(0) // Available Stock
+  imageUrl              String?
+  brochureUrl           String?
 }
 
 model Order {
@@ -50,14 +68,72 @@ model Order {
   scooterModel    String
   quantity        Int
   color           String
-  accessories     String?  // JSON string or comma-separated
+  accessories     String?  // JSON string
   deliveryAddress String
   paymentOption   String
-  status          String   @default("PLACED") // PLACED, APPROVED, PROCESSING, DISPATCHED, IN_TRANSIT, DELIVERED
+  status          String   @default("Order Confirmed") // 14 steps
   trackingId      String?
   expectedArrival DateTime?
+  
+  // Dispatch Details
+  transportCompany String?
+  driverName       String?
+  driverMobile     String?
+  vehicleNumber    String?
+  lrNumber         String?
+  dispatchDate     DateTime?
+  
   invoice         Invoice?
+  vehicles        Vehicle[] // Manufactured units
   createdAt       DateTime @default(now())
+}
+
+model Vehicle {
+  id               String    @id @default(uuid())
+  orderId          String
+  order            Order     @relation(fields: [orderId], references: [id])
+  scooterModel     String
+  chassisNumber    String    @unique
+  motorNumber      String    @unique
+  batteryNumber    String    @unique
+  controllerNumber String    @unique
+  batchNumber      String
+  productionDate   DateTime
+  inspectionStatus String    @default("Pending") // Pending, Passed, Failed
+  qrCodeData       String?
+  warranty         Warranty?
+}
+
+model Warranty {
+  id                String   @id @default(uuid())
+  vehicleId         String   @unique
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id])
+  dealerName        String
+  purchaseDate      DateTime
+  warrantyStartDate DateTime
+  warrantyExpiryDate DateTime
+  status            String   @default("Active") // Active, Claimed, Expired
+}
+
+model SparePart {
+  id          String   @id @default(uuid())
+  name        String
+  category    String
+  price       Float
+  stock       Int      @default(0)
+  description String?
+  imageUrl    String?
+}
+
+model SparePartOrder {
+  id          String   @id @default(uuid())
+  dealerId    String
+  dealer      Dealer   @relation(fields: [dealerId], references: [id])
+  partId      String
+  quantity    Int
+  totalAmount Float
+  status      String   @default("Pending")
+  createdAt   DateTime @default(now())
 }
 
 model Sale {
