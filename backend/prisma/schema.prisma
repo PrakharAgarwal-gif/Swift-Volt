@@ -15,9 +15,10 @@ model User {
   email     String   @unique
   phone     String
   password  String
-  role      String   @default("DEALER") // ADMIN or DEALER
-  dealer    Dealer?
-  createdAt DateTime @default(now())
+  role          String         @default("DEALER") // ADMIN or DEALER
+  dealer        Dealer?
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
 }
 
 model Dealer {
@@ -153,4 +154,16 @@ model Invoice {
   gst       Float   @default(0.0)
   pdfUrl    String?
   status    String  @default("PENDING") // PENDING, PAID
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, SUCCESS, WARNING, ERROR
+  read      Boolean  @default(false)
+  link      String?  
+  createdAt DateTime @default(now())
 }

@@ -190,6 +190,22 @@ app.post('/api/orders', authenticate, async (req, res) => {
     // Notify admin
     io.emit('new_order', order);
     
+    // Create DB Notification for all admins
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+    const dealerUser = await prisma.user.findUnique({ where: { id: req.user.id } });
+    for (const admin of admins) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          title: 'New Order Received',
+          message: `${dealerUser?.name || 'A dealer'} has placed an order for ${quantity}x ${scooterModel}.`,
+          type: 'SUCCESS',
+          link: '/dashboard/orders'
+        }
+      });
+      io.emit(`new_notification_${admin.id}`, notification);
+    }
+    
     // Email Notification
     if (process.env.SMTP_USER) {
       transporter.sendMail({
@@ -491,6 +507,47 @@ app.get('/api/search', authenticate, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Get Notifications
+app.get('/api/notifications', authenticate, async (req, res) => {
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark Notification as Read
+app.put('/api/notifications/:id/read', authenticate, async (req, res) => {
+  try {
+    const notification = await prisma.notification.update({
+      where: { id: req.params.id },
+      data: { read: true }
+    });
+    res.json(notification);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark All Notifications as Read
+app.put('/api/notifications/read-all', authenticate, async (req, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user.id, read: false },
+      data: { read: true }
+    });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {

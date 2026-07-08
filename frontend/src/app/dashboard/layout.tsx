@@ -13,14 +13,19 @@ import {
   LogOut,
   Bell,
   Menu,
-  LayoutGrid
+  LayoutGrid,
+  Check
 } from 'lucide-react';
+import api from '@/lib/api';
+import { io } from 'socket.io-client';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const userCookie = Cookies.get('user');
@@ -28,7 +33,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.push('/login');
       return;
     }
-    setUser(JSON.parse(userCookie));
+    const parsedUser = JSON.parse(userCookie);
+    setUser(parsedUser);
+    
+    // Fetch initial notifications
+    api.get('/notifications').then(res => setNotifications(res.data)).catch(console.error);
+    
+    // Setup Socket
+    const socketUrl = process.env.NODE_ENV === 'production' ? 'https://swift-volt.onrender.com' : 'http://localhost:3001';
+    const socket = io(socketUrl);
+    
+    socket.on(`new_notification_${parsedUser.id}`, (notification) => {
+      setNotifications(prev => [notification, ...prev]);
+    });
+    
+    return () => {
+      socket.disconnect();
+    };
   }, [router]);
 
   const handleLogout = () => {
@@ -125,10 +146,64 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <div className="ml-4 flex items-center md:ml-6 space-x-4">
-            <button className="p-2 text-gray-400 hover:text-gray-500 relative">
-              <Bell className="h-6 w-6" />
-              <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 text-gray-400 hover:text-gray-500 relative"
+              >
+                <Bell className="h-6 w-6" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900" />
+                )}
+              </button>
+              
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#0f172a] rounded-xl shadow-lg border border-gray-100 dark:border-gray-800 z-50 overflow-hidden">
+                  <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                    <button 
+                      onClick={async () => {
+                        await api.put('/notifications/read-all');
+                        setNotifications(notifications.map(n => ({...n, read: true})));
+                      }}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Mark all as read
+                    </button>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-gray-500">No notifications yet.</div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          onClick={async () => {
+                            if (!notif.read) {
+                              await api.put(`/notifications/${notif.id}/read`);
+                              setNotifications(notifications.map(n => n.id === notif.id ? {...n, read: true} : n));
+                            }
+                            if (notif.link) {
+                              router.push(notif.link);
+                              setShowNotifications(false);
+                            }
+                          }}
+                          className={`p-4 border-b border-gray-100 dark:border-gray-800 last:border-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${notif.read ? 'opacity-60' : 'bg-blue-50/30 dark:bg-blue-900/10'}`}
+                        >
+                          <div className="flex items-start">
+                            <div className={`w-2 h-2 mt-1.5 rounded-full mr-3 shrink-0 ${notif.read ? 'bg-transparent' : 'bg-primary'}`}></div>
+                            <div>
+                              <h4 className={`text-sm ${notif.read ? 'font-medium text-gray-700 dark:text-gray-300' : 'font-bold text-gray-900 dark:text-white'}`}>{notif.title}</h4>
+                              <p className="text-xs text-gray-500 mt-1">{notif.message}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex items-center max-w-xs text-sm rounded-full focus:outline-none">
               <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
                 {user.name.charAt(0)}
