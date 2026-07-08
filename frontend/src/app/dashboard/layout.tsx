@@ -12,7 +12,8 @@ import {
   MessageSquare,
   LogOut,
   Bell,
-  Menu
+  Menu,
+  LayoutGrid
 } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItems = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Catalogue', href: '/dashboard/catalogue', icon: LayoutGrid },
     ...(user.role === 'ADMIN' ? [
       { name: 'Dealers', href: '/dashboard/dealers', icon: Users },
     ] : []),
