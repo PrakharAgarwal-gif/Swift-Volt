@@ -5,6 +5,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const http = require('http');
 const { Server } = require('socket.io');
+const { OpenAI } = require('openai');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,6 +16,19 @@ const io = new Server(server, {
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-swift-volt';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'dummy'
+});
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: process.env.SMTP_PORT || 587,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -175,6 +190,16 @@ app.post('/api/orders', authenticate, async (req, res) => {
     // Notify admin
     io.emit('new_order', order);
     
+    // Email Notification
+    if (process.env.SMTP_USER) {
+      transporter.sendMail({
+        from: process.env.SMTP_USER,
+        to: process.env.ADMIN_EMAIL || 'admin@swiftvolt.com',
+        subject: `New Order Placed: #${order.id.substring(0, 8).toUpperCase()}`,
+        text: `Dealer ${dealerId} has placed a new order for ${quantity}x ${scooterModel} (${color}).`
+      }).catch(err => console.error('Email failed:', err));
+    }
+    
     res.json(order);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -228,10 +253,26 @@ app.put('/api/orders/:id/status', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// AI Assistant Mock (until OpenAI key is provided)
+// AI Assistant (Integrated with OpenAI)
 app.post('/api/ai/chat', authenticate, async (req, res) => {
   try {
     const { message } = req.body;
+    
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'dummy') {
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            { role: "system", content: "You are the Swift Volt AI Assistant. You help dealers manage their scooter inventory and provide insights." },
+            { role: "user", content: message }
+          ],
+        });
+        return res.json({ reply: completion.choices[0].message.content });
+      } catch (aiErr) {
+        console.error("OpenAI Error:", aiErr);
+        // Fallback to mock if API fails
+      }
+    }
     
     let reply = "I am the Swift Volt AI Assistant. How can I help you today?";
     
