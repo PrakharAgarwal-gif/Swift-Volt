@@ -37,13 +37,22 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       });
-    }).catch(() => {
+    }).catch((error) => {
       // Fallback for offline API failure
-      if (event.request.headers.get('accept').includes('application/json')) {
-        return new Response(JSON.stringify({ error: 'Offline mode active' }), {
+      if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('application/json')) {
+        return new Response(JSON.stringify({ error: 'Offline mode active', details: error.message }), {
           headers: { 'Content-Type': 'application/json' }
         });
       }
+      
+      // Prevent ERR_FAILED for HTML navigation requests by returning a fallback response instead of undefined
+      return new Response(
+        '<html><body><h1>Offline Mode / Server Unreachable</h1><p>The Next.js development server is currently unreachable. Please ensure it is running and try refreshing.</p></body></html>',
+        {
+          status: 503,
+          headers: { 'Content-Type': 'text/html' }
+        }
+      );
     })
   );
 });

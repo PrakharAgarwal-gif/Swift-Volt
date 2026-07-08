@@ -1,9 +1,16 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
+const isLocal = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' || 
+  window.location.hostname.startsWith('192.168.') ||
+  window.location.hostname.startsWith('10.') ||
+  window.location.hostname.startsWith('172.')
+);
+
 const api = axios.create({
-  baseURL: (typeof window !== 'undefined' && window.location.hostname === 'localhost') || process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3001/api' 
+  baseURL: isLocal || process.env.NODE_ENV === 'development'
+    ? `http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001/api`
     : 'https://swift-volt.onrender.com/api',
 });
 

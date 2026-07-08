@@ -11,7 +11,8 @@ import {
   Truck, 
   Plus,
   Settings,
-  ChevronDown
+  ChevronDown,
+  ArrowRight
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 
