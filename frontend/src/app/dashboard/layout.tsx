@@ -30,6 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [globalToast, setGlobalToast] = useState<string | null>(null);
 
   useEffect(() => {
     const userCookie = Cookies.get('user');
@@ -49,6 +50,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     
     socket.on(`new_notification_${parsedUser.id}`, (notification) => {
       setNotifications(prev => [notification, ...prev]);
+    });
+    
+    socket.on('new_order', (orderInfo) => {
+      if (parsedUser.role === 'ADMIN') {
+        setGlobalToast(`🚀 New Bulk Order from ${orderInfo.dealerName}! (${orderInfo.quantity} units)`);
+        setTimeout(() => setGlobalToast(null), 8000);
+      }
     });
     
     return () => {
@@ -226,6 +234,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      {/* Global Toast Notification */}
+      {globalToast && (
+        <div className="fixed bottom-6 right-6 z-[100] animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-primary text-white shadow-xl rounded-xl p-4 flex items-start max-w-sm border border-primary/20">
+            <div className="bg-white/20 p-2 rounded-full mr-3 shrink-0">
+              <ShoppingCart className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm">New Order Alert</h4>
+              <p className="text-xs text-white/90 mt-1 leading-relaxed">{globalToast}</p>
+            </div>
+            <button onClick={() => setGlobalToast(null)} className="ml-4 text-white/70 hover:text-white shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

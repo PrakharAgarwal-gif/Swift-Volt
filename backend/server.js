@@ -118,6 +118,48 @@ app.get('/api/dealers', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+// Admin: Add a new dealer
+app.post('/api/dealers', authenticate, isAdmin, async (req, res) => {
+  const { name, email, phone, password, companyName, address } = req.body;
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this email already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user and dealer in a transaction
+    const newDealer = await prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          phone,
+          password: hashedPassword,
+          role: 'DEALER'
+        }
+      });
+
+      const dealer = await prisma.dealer.create({
+        data: {
+          userId: user.id,
+          companyName,
+          address,
+          stock: 0,
+          performanceScore: 100.0 // Starting score
+        }
+      });
+
+      return { ...dealer, user };
+    });
+
+    res.json(newDealer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Dealer: Get profile & stats
 app.get('/api/dealer/profile', authenticate, async (req, res) => {
   try {
@@ -175,6 +217,7 @@ app.post('/api/orders', authenticate, async (req, res) => {
         scooterModel,
         quantity,
         color,
+        accessories,
         deliveryAddress,
         paymentOption,
         expectedArrival: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
@@ -187,8 +230,16 @@ app.post('/api/orders', authenticate, async (req, res) => {
       data: { quantity: scooter.quantity - quantity }
     });
     
-    // Notify admin
-    io.emit('new_order', order);
+    const dealer = await prisma.dealer.findUnique({ where: { id: dealerId } });
+    
+    // Broadcast to admins
+    io.emit('new_order', {
+      id: order.id,
+      dealerName: dealer?.companyName || 'Unknown Dealer',
+      scooterModel,
+      quantity,
+      timestamp: order.createdAt
+    });
     
     // Create DB Notification for all admins
     const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
@@ -595,9 +646,9 @@ app.post('/api/orders/quick', authenticate, async (req, res) => {
     
     // Simplistic transaction-like approach for MVP
     for (const item of items) {
-      const scooter = await prisma.scooter.findFirst({ where: { model: item.model, color: item.color } });
+      const scooter = await prisma.scooter.findFirst({ where: { model: item.model } });
       if (!scooter || scooter.quantity < item.quantity) {
-        throw new Error(`Insufficient stock for ${item.model} (${item.color})`);
+        throw new Error(`Insufficient stock for ${item.model}`);
       }
       
       const order = await prisma.order.create({
@@ -620,8 +671,33 @@ app.post('/api/orders/quick', authenticate, async (req, res) => {
       createdOrders.push(order);
     }
     
-    // Notify admin
-    io.emit('new_bulk_order', createdOrders);
+    const dealer = await prisma.dealer.findUnique({ where: { id: dealerId } });
+    
+    // Broadcast to admins (Toast)
+    io.emit('new_order', {
+      id: 'bulk-' + Math.random().toString(36).substring(7),
+      dealerName: dealer?.companyName || 'Unknown Dealer',
+      scooterModel: 'Bulk Order (Multiple Items)',
+      quantity: items.reduce((sum, item) => sum + (item.quantity || 0), 0),
+      timestamp: new Date()
+    });
+    
+    // Create DB Notification for all admins (Bell Icon)
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+    const dealerUser = await prisma.user.findUnique({ where: { id: req.user.id } });
+    const totalQty = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+    
+    for (const admin of admins) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          title: 'New Bulk Order',
+          message: `${dealerUser?.name || 'A dealer'} has placed a bulk order for ${totalQty} total units.`,
+          link: '/dashboard/orders'
+        }
+      });
+      io.emit(`new_notification_${admin.id}`, notification);
+    }
     
     res.json({ success: true, orders: createdOrders });
   } catch (error) {
