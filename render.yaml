@@ -13,6 +13,16 @@ services:
       - key: JWT_SECRET
         generateValue: true
 
+  - type: web
+    name: swiftvolt-frontend
+    env: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://swiftvolt-backend.onrender.com/api
+
 databases:
   - name: swiftvolt-db
     databaseName: swiftvolt

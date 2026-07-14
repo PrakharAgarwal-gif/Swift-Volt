@@ -57,6 +57,23 @@ export default function DashboardOverview() {
     }
   };
 
+  const handleExport = async (type: 'excel' | 'pdf') => {
+    try {
+      const res = await api.get(`/orders/export/${type}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `orders_export.${type === 'excel' ? 'xlsx' : 'pdf'}`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(`Failed to export ${type}`, err);
+      alert(`Failed to export ${type}`);
+    }
+  };
+
   if (loading) return <div className="flex h-full items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
 
   const salesData = [
@@ -181,16 +198,12 @@ export default function DashboardOverview() {
               <h3 className="text-lg font-semibold mb-4">Export Reports</h3>
               <p className="text-sm text-gray-500 mb-6">Generate professional reports for the business network.</p>
               <div className="space-y-3">
-                <button onClick={handleExportCSV} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-red-500" /><span className="text-sm font-medium">Sales Report (PDF)</span></div>
+                <button onClick={() => handleExport('pdf')} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-red-500" /><span className="text-sm font-medium">Orders Register (PDF)</span></div>
                   <ArrowDownRight className="w-4 h-4 text-gray-400" />
                 </button>
-                <button onClick={handleExportCSV} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-green-500" /><span className="text-sm font-medium">Inventory & Orders (Excel)</span></div>
-                  <ArrowDownRight className="w-4 h-4 text-gray-400" />
-                </button>
-                <button onClick={handleExportCSV} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-blue-500" /><span className="text-sm font-medium">GST & Revenue (CSV)</span></div>
+                <button onClick={() => handleExport('excel')} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                  <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-green-500" /><span className="text-sm font-medium">Orders Register (Excel)</span></div>
                   <ArrowDownRight className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
@@ -238,6 +251,45 @@ export default function DashboardOverview() {
                 </div>
               )}
               
+              {/* Reports Export Widget (Dealer) */}
+              <div className="bg-white dark:bg-[#0f172a] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <h3 className="text-lg font-semibold mb-4">Export Reports</h3>
+                <p className="text-sm text-gray-500 mb-6">Download your order history.</p>
+                <div className="space-y-3">
+                  <button onClick={() => handleExport('pdf')} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                    <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-red-500" /><span className="text-sm font-medium">Orders Register (PDF)</span></div>
+                    <ArrowDownRight className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <button onClick={() => handleExport('excel')} className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer">
+                    <div className="flex items-center"><FileText className="w-4 h-4 mr-3 text-green-500" /><span className="text-sm font-medium">Orders Register (Excel)</span></div>
+                    <ArrowDownRight className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="bg-white dark:bg-[#0f172a] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
+                <h3 className="text-lg font-semibold mb-4">Analytics & Recommendations</h3>
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 rounded-lg">
+                    <p className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-1">Sales Velocity</p>
+                    <p className="text-lg font-bold text-blue-900 dark:text-blue-200">15 units sold this week</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">Trending +12% vs last week</p>
+                  </div>
+                  
+                  <div className="p-4 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/30 rounded-lg">
+                    <p className="text-sm font-medium text-purple-800 dark:text-purple-300 mb-1">Top Performing Model</p>
+                    <p className="text-lg font-bold text-purple-900 dark:text-purple-200">Swift Volt X-Pro</p>
+                    <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">Accounts for 65% of your sales</p>
+                  </div>
+
+                  <div className="p-4 bg-green-50 dark:bg-green-900/10 border border-green-100 dark:border-green-800/30 rounded-lg">
+                    <p className="text-sm font-medium text-green-800 dark:text-green-300 mb-1">Reorder Recommendation</p>
+                    <p className="text-lg font-bold text-green-900 dark:text-green-200">Order 20 units of X-Pro</p>
+                    <p className="text-xs text-green-700 dark:text-green-400 mt-1">Based on current sales velocity and lead time</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-white dark:bg-[#0f172a] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
                 <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-4">

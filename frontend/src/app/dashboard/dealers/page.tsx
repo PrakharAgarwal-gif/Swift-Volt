@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { Users, Plus, Building2, MapPin, Search, Star, Phone, Mail, X } from 'lucide-react';
+import Cookies from 'js-cookie';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function DealersPage() {
   const [dealers, setDealers] = useState<any[]>([]);
@@ -20,9 +23,19 @@ export default function DealersPage() {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
+  const router = useRouter();
 
   const fetchDealers = async () => {
     try {
+      const userCookie = Cookies.get('user');
+      if (userCookie) {
+        const parsedUser = JSON.parse(userCookie);
+        if (parsedUser.role !== 'ADMIN') {
+          router.push('/dashboard');
+          return;
+        }
+      }
+      
       setLoading(true);
       const res = await api.get('/dealers');
       setDealers(res.data);
@@ -92,6 +105,7 @@ export default function DealersPage() {
                 <th className="px-6 py-4 font-semibold">Dealership</th>
                 <th className="px-6 py-4 font-semibold">Contact Person</th>
                 <th className="px-6 py-4 font-semibold">Location</th>
+                <th className="px-6 py-4 font-semibold">Last Order</th>
                 <th className="px-6 py-4 font-semibold">Score</th>
                 <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
@@ -105,7 +119,7 @@ export default function DealersPage() {
                 </tr>
               ) : dealers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No dealers found. Click "Add New Dealer" to register one.</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">No dealers found. Click "Add New Dealer" to register one.</td>
                 </tr>
               ) : (
                 dealers.map((dealer) => (
@@ -134,6 +148,17 @@ export default function DealersPage() {
                         <span className="text-gray-600 dark:text-gray-400 leading-tight">{dealer.address}</span>
                       </div>
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {dealer.orders && dealer.orders.length > 0 ? (
+                        new Date(dealer.orders[0].createdAt).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })
+                      ) : (
+                        <span className="text-gray-400 italic">No orders yet</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <Star className="w-4 h-4 text-yellow-400 mr-1.5 fill-current" />
@@ -141,7 +166,7 @@ export default function DealersPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-primary hover:underline font-medium text-sm">View Profile</button>
+                      <Link href={`/dashboard/dealers/${dealer.id}`} className="text-primary hover:underline font-medium text-sm">View Insights</Link>
                     </td>
                   </tr>
                 ))

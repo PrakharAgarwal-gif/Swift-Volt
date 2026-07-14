@@ -47,7 +47,8 @@ export default function OrdersPage() {
     
     fetchOrders();
 
-    const socketUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://swift-volt.onrender.com';
+    const backendHost = typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? window.location.hostname : 'localhost';
+    const socketUrl = process.env.NODE_ENV === 'production' ? 'https://swift-volt.onrender.com' : `http://${backendHost}:3001`;
     const socket = io(socketUrl);
     socket.on('new_order', (order) => {
       setOrders(prev => [order, ...prev]);
@@ -104,6 +105,23 @@ export default function OrdersPage() {
     }
   };
 
+  const handleExport = async (type: 'excel' | 'pdf') => {
+    try {
+      const res = await api.get(`/orders/export/${type}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `orders_export.${type === 'excel' ? 'xlsx' : 'pdf'}`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(`Failed to export ${type}`, err);
+      alert(`Failed to export ${type}`);
+    }
+  };
+
   const getStepProgress = (status: string) => {
     const idx = MANUFACTURING_STEPS.indexOf(status);
     if (idx === -1) return 0;
@@ -128,6 +146,20 @@ export default function OrdersPage() {
             Place New Order
           </a>
         )}
+        <div className="flex gap-3 mt-4 sm:mt-0">
+          <button
+            onClick={() => handleExport('excel')}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-sm cursor-pointer"
+          >
+            Export Excel
+          </button>
+          <button
+            onClick={() => handleExport('pdf')}
+            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
+          >
+            Export PDF
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">

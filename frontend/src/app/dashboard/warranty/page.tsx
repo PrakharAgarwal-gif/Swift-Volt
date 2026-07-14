@@ -7,21 +7,19 @@ import { FileText, Search, ShieldAlert, CheckCircle, Clock } from 'lucide-react'
 
 export default function WarrantyPage() {
   const [warranties, setWarranties] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      const userCookie = Cookies.get('user');
+      return userCookie ? JSON.parse(userCookie) : null;
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [selectedWarranty, setSelectedWarranty] = useState<any>(null);
   const [issueDescription, setIssueDescription] = useState('');
-
-  useEffect(() => {
-    const userCookie = Cookies.get('user');
-    if (userCookie) {
-      setUser(JSON.parse(userCookie));
-    }
-    fetchWarranties();
-  }, []);
 
   const fetchWarranties = async () => {
     try {
@@ -33,6 +31,10 @@ export default function WarrantyPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchWarranties();
+  }, []);
 
   const handleStatusChange = async (id: string, status: string) => {
     try {

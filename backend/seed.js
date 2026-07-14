@@ -6,6 +6,10 @@ async function main() {
   console.log('Seeding database for Enterprise DMS...');
   
   // Clear existing data (order matters due to foreign keys)
+  await prisma.inventoryMovement.deleteMany();
+  await prisma.dealerInventory.deleteMany();
+  await prisma.customerInvoice.deleteMany();
+  await prisma.customer.deleteMany();
   await prisma.warranty.deleteMany();
   await prisma.vehicle.deleteMany();
   await prisma.invoice.deleteMany();
@@ -15,6 +19,8 @@ async function main() {
   await prisma.order.deleteMany();
   await prisma.scooter.deleteMany();
   await prisma.dealer.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.notification.deleteMany();
   await prisma.user.deleteMany();
 
   // 1. Create Users & Dealers

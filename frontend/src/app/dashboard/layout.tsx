@@ -18,7 +18,8 @@ import {
   Smartphone,
   Scan,
   UsersRound,
-  Files
+  Files,
+  Activity
 } from 'lucide-react';
 import api from '@/lib/api';
 import { io } from 'socket.io-client';
@@ -45,7 +46,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     api.get('/notifications').then(res => setNotifications(res.data)).catch(console.error);
     
     // Setup Socket
-    const socketUrl = process.env.NODE_ENV === 'production' ? 'https://swift-volt.onrender.com' : 'http://localhost:3001';
+    const backendHost = typeof window !== 'undefined' && window.location.hostname !== 'localhost' ? window.location.hostname : 'localhost';
+    const socketUrl = process.env.NODE_ENV === 'production' ? 'https://swift-volt.onrender.com' : `http://${backendHost}:3001`;
     const socket = io(socketUrl);
     
     socket.on(`new_notification_${parsedUser.id}`, (notification) => {
@@ -77,6 +79,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Catalogue', href: '/dashboard/catalogue', icon: LayoutGrid },
     ...(user.role === 'ADMIN' ? [
       { name: 'Dealers', href: '/dashboard/dealers', icon: Users },
+      { name: 'Audit Logs', href: '/dashboard/audit', icon: Activity },
     ] : []),
     { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
     { name: 'Spare Parts', href: '/dashboard/spare-parts', icon: Package },
